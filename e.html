@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Escuchar en Oiralía</title>
+<meta name="description" content="Un momento de un podcast compartido desde Oiralía.">
+<meta property="og:title" content="Un momento de un podcast">
+<meta property="og:description" content="Compartido desde Oiralía. Ábrelo para escucharlo justo desde ahí.">
+<meta property="og:image" content="https://neldoreth.github.io/oiralia-app/icono.png">
+<link rel="icon" href="icono.png">
+<link rel="stylesheet" href="estilo.css">
+<style>
+  .tarjeta { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; margin-top: 8px; }
+  .portada { width: min(260px, 70vw); aspect-ratio: 1; border-radius: 22px; object-fit: cover;
+             box-shadow: 0 18px 40px rgba(0, 0, 0, .22); background: var(--linea); }
+  .programa { color: var(--acento); font-weight: 600; margin: 6px 0 0; }
+  .titulo { font-size: 1.45rem; line-height: 1.25; margin: 0; letter-spacing: -0.01em; max-width: 30ch; }
+  .desde { color: var(--suave); margin: 0; font-variant-numeric: tabular-nums; }
+  audio { width: 100%; max-width: 460px; margin-top: 6px; }
+  .botones { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 4px; }
+  .boton { display: inline-block; padding: 12px 22px; border-radius: 999px; font-weight: 600; text-decoration: none;
+           border: 0; font: inherit; font-weight: 600; cursor: pointer; }
+  .principal { background: var(--acento); color: #fff; }
+  .secundario { background: var(--linea); color: var(--texto); }
+  .nota { color: var(--suave); font-size: 0.9rem; max-width: 46ch; }
+  .marca { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; color: var(--suave); text-decoration: none; }
+  .marca img { width: 32px; height: 32px; border-radius: 8px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <a class="marca" href="./"><img src="icono.png" alt=""> Oiralía</a>
+
+  <section class="tarjeta" id="momento" hidden>
+    <img class="portada" id="portada" alt="" hidden>
+    <div>
+      <p class="programa" id="programa"></p>
+      <h1 class="titulo" id="titulo"></h1>
+    </div>
+    <p class="desde" id="desde"></p>
+    <audio id="audio" controls preload="metadata" hidden></audio>
+    <div class="botones">
+      <button class="boton principal" id="escuchar" hidden>Escuchar aquí</button>
+      <a class="boton secundario" id="abrir" href="#">Abrir en Oiralía</a>
+    </div>
+    <p class="nota" id="nota">«Abrir en Oiralía» funciona si tienes la app en este iPhone, iPad o Mac; si aún no sigues el programa, te ofrecerá suscribirte.</p>
+  </section>
+
+  <section id="vacio" hidden>
+    <h1>Enlace incompleto</h1>
+    <p>A este enlace le falta información. Pide a quien te lo mandó que lo comparta otra vez desde Oiralía.</p>
+  </section>
+
+  <nav>
+    <a href="./">Oiralía</a>
+    <a href="privacidad.html">Privacidad</a>
+    Lo que va en este enlace no se envía a ningún servidor: solo lo lee tu navegador.
+  </nav>
+</main>
+<script>
+(function () {
+  // Mismo formato que SharedMoment (app): t, e, p, f, g, a, i detrás de «#».
+  var raw = location.hash.slice(1);
+  var v = {};
+  raw.split('&').forEach(function (par) {
+    var i = par.indexOf('=');
+    if (i < 0) return;
+    try { v[par.slice(0, i)] = decodeURIComponent(par.slice(i + 1).replace(/\+/g, ' ')); } catch (e) {}
+  });
+  if (!v.f || !v.g) { document.getElementById('vacio').hidden = false; return; }
+
+  var t = Math.max(0, parseInt(v.t || '0', 10) || 0);
+  function reloj(s) {
+    var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
+    var dd = function (n) { return (n < 10 ? '0' : '') + n; };
+    return h > 0 ? h + ':' + dd(m) + ':' + dd(x) : m + ':' + dd(x);
+  }
+  function https(u) { return /^https?:\/\//i.test(u || '') ? u.replace(/^http:/i, 'https:') : null; }
+
+  document.getElementById('momento').hidden = false;
+  document.getElementById('programa').textContent = v.p || '';
+  document.getElementById('titulo').textContent = v.e || 'Episodio';
+  document.title = (v.e || 'Episodio') + (v.p ? ' · ' + v.p : '') + ' · Oiralía';
+  document.getElementById('desde').textContent = t > 0 ? 'Desde el ' + (t >= 3600 ? '' : 'minuto ') + reloj(t) : 'Desde el principio';
+
+  var img = https(v.i);
+  if (img) {
+    var p = document.getElementById('portada');
+    p.src = img; p.hidden = false;
+    p.onerror = function () { p.hidden = true; };
+  }
+
+  document.getElementById('abrir').href = 'oiralia://momento?' + raw;
+
+  var audioURL = https(v.a);
+  if (audioURL) {
+    var audio = document.getElementById('audio');
+    var boton = document.getElementById('escuchar');
+    audio.src = audioURL + '#t=' + t;
+    audio.hidden = false;
+    boton.hidden = false;
+    boton.textContent = t > 0 ? 'Escuchar desde el ' + reloj(t) : 'Escuchar aquí';
+    var colocado = false;
+    function colocar() { if (!colocado && t > 0) { try { audio.currentTime = t; colocado = true; } catch (e) {} } }
+    audio.addEventListener('loadedmetadata', colocar);
+    boton.addEventListener('click', function () { colocar(); audio.play(); });
+  }
+})();
+</script>
+</body>
+</html>
